@@ -1,40 +1,34 @@
 pipeline {
-    agent any 
-    environment {
-        DOCKERHUB_CREDENTIALS = credentials('test1')
-    }
+    agent any
     stages {
-        stage('Build docker image') {
-            steps {  
+        stage('Build Docker image') {
+            steps {
                 echo "Building Docker image..."
-                sh 'docker build -t harsudan/flaskapp:$BUILD_NUMBER .'
+                sh 'docker build -t harsudan/flaskapp:$BUILD_NUMBER -t harsudan/flaskapp:latest .'
             }
         }
-        stage('login to dockerhub') {
+        stage('Login to DockerHub') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'test1', usernameVariable: 'DOCKERHUB_USERNAME', passwordVariable: 'DOCKERHUB_PASSWORD')]) {
                     echo "Logging in to Docker Hub..."
-                    sh "docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_PASSWORD"
+                    sh "echo $DOCKERHUB_PASSWORD | docker login -u $DOCKERHUB_USERNAME --password-stdin"
                 }
             }
         }
-        stage('push image') {
+        stage('Push image') {
             steps {
                 echo "Pushing Docker image to Docker Hub..."
                 sh 'docker push harsudan/flaskapp:$BUILD_NUMBER'
+                sh 'docker push harsudan/flaskapp:latest'
             }
         }
         stage('Deploy to Staging') {
             steps {
-                // Pull the latest image from Docker Hub
-                sh 'docker pull harsudan/flaskapp:$BUILD_NUMBER'
-
-                // Stop and remove any existing containers
+                echo "Deploying container..."
+                sh 'docker pull harsudan/flaskapp:latest'
                 sh 'docker stop myapp-container || true'
                 sh 'docker rm myapp-container || true'
-
-                // Run the new container with the latest image
-                sh 'docker run -d --name myapp-container -p 8000:8000 harsudan/flaskapp:$BUILD_NUMBER'
+                sh 'docker run -d --name myapp-container -p 8000:8000 harsudan/flaskapp:latest'
             }
         }
     }
